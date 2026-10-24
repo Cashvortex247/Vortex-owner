@@ -1,0 +1,77 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VORTEX OWNER</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
+:root{--bg:#09060e;--panel:#171020;--purple:#a855f7;--lav:#d8b4fe;--text:#f8f3ff;--muted:#b7a9c7;--line:#3b2850}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#241039,#09060e 60%);color:var(--text);font:15px system-ui;padding:0 0 35px}header{padding:24px;text-align:center;border-bottom:1px solid var(--line)}.mark{width:68px;height:68px;border-radius:50%;margin:auto auto 10px;display:grid;place-items:center;border:2px solid #bd76ff;box-shadow:0 0 18px #9b39ff;color:white;font-weight:900;font-size:24px}.sub,.muted{color:var(--muted);font-size:12px}main{max-width:760px;margin:auto;padding:15px}.notice,.card{background:#171020;border:1px solid var(--line);border-radius:15px;padding:15px;margin:12px 0}label{display:block;font-size:12px;color:var(--muted);margin:9px 0 5px}input,textarea,select{width:100%;padding:12px;background:#0e0915;border:1px solid #49335f;color:white;border-radius:10px;margin-bottom:8px;font:inherit}button{border:1px solid #70409b;background:#291b38;color:white;border-radius:10px;padding:11px 14px;font-weight:700;margin:4px 3px 4px 0}button.primary{background:linear-gradient(120deg,#6d28d9,#a855f7)}button.danger{background:#381720}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:520px){.grid{grid-template-columns:1fr}}.product{border:1px solid var(--line);border-radius:12px;padding:12px;margin:9px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pinfo{flex:1;min-width:130px}.pill{font-size:11px;border:1px solid #70409b;padding:3px 7px;border-radius:99px}.hidden{display:none!important}.status{padding:10px;background:#20152c;border-radius:10px;white-space:pre-wrap}
+</style></head><body><header><div class="mark">K<span style="transform:rotate(-90deg);display:inline-block">V</span></div><b style="letter-spacing:3px">VORTEX OWNER</b><div class="sub">PRIVATE STORE CONTROL</div></header><main>
+<div class="notice"><b>Online owner dashboard</b><br>Sign in with the owner account you created in Supabase. This page uses your publishable key only; never add a secret key here. Products sync through your Supabase database.</div>
+<section class="card" id="authCard"><h2>Owner sign in</h2>
+<div class="notice">Fingerprint sign-in needs this app hosted on HTTPS and configured with Supabase Passkeys. Use your existing Supabase login for first-time setup.</div>
+<button class="primary" id="passkeySignIn">🔐 Sign in with fingerprint / passkey</button>
+<button id="registerPasskey" class="hidden">＋ Register this phone</button>
+<details style="margin-top:14px"><summary>First-time setup / password fallback</summary>
+<label>Email</label><input id="email" type="email" autocomplete="username" placeholder="Your owner email">
+<label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Owner account password">
+<button class="primary" id="signIn">Sign in with email</button></details>
+<button id="signOut" class="hidden">Sign out</button>
+<div class="muted" id="authHelp">A downloaded HTML file cannot complete secure passkey sign-in. Host this app on HTTPS first.</div></section>
+<div id="app" class="hidden"><div class="status" id="status">Signed in. Loading products…</div><section class="card"><h2>Add / edit product</h2><input id="id" type="hidden"><label>Product title</label><input id="title" placeholder="NIGHTFALL by Kash Vortex"><div class="grid"><div><label>Category</label><select id="category"><option>Beats</option><option>Presets</option><option>Samples</option><option>Melodies</option><option>Authorized Plugins</option></select></div><div><label>Price (ZAR)</label><input id="price" type="number" min="0" step="0.01" value="0"></div></div><label>Description</label><textarea id="description" placeholder="Describe the sound, BPM, format and licence"></textarea><label>Product file (optional)</label><input id="file" type="file" accept="audio/*,.zip,.fst,.fxp,.vst3,.mid,.flp,.pdf"><label>Cover image (optional)</label><input id="cover" type="file" accept="image/*"><label><input id="free" type="checkbox" checked style="width:auto"> Free product</label><label><input id="published" type="checkbox" style="width:auto"> Published (visible to customers)</label><button class="primary" id="save">Save online</button><button id="clear">Clear form</button><div class="muted">Only upload files you own or are authorized to distribute. Paid downloads are not payment-enabled yet.</div></section><section class="card"><h2>Online catalogue <span id="count" class="pill">0 products</span></h2><div id="products"></div></section></div>
+</main><script>
+const SUPABASE_URL='https://eabcwonisvdntxiprkrk.supabase.co';const SUPABASE_PUBLISHABLE_KEY='sb_publishable_JVxkLiBOS-NR42v4MXjO0Q_XD6o7J3V';const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{experimental:{passkey:true}}});const $=id=>document.getElementById(id);let items=[];
+function msg(t){$('status').textContent=t}function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function sessionUI(){
+  const {data}=await client.auth.getSession();
+  const ok=!!data.session;
+  $('app').classList.toggle('hidden',!ok);
+  $('signOut').classList.toggle('hidden',!ok);
+  $('signIn').classList.toggle('hidden',ok);
+  $('passkeySignIn').classList.toggle('hidden',ok);
+  $('registerPasskey').classList.toggle('hidden',!ok);
+  $('email').disabled=ok;
+  $('password').disabled=ok;
+  if(ok) await loadProducts();
+}
+$('signIn').onclick=async()=>{
+  const email=$('email').value.trim(),password=$('password').value;
+  if(!email||!password){alert('Enter your owner email and password for first-time setup.');return}
+  const {error}=await client.auth.signInWithPassword({email,password});
+  if(error){alert('Sign-in failed: '+error.message);return}
+  await sessionUI();
+};
+$('passkeySignIn').onclick=async()=>{
+  if(!window.isSecureContext || !navigator.credentials){
+    alert('Fingerprint/passkey sign-in needs an HTTPS website. This downloaded HTML file cannot perform secure passkey sign-in.');
+    return;
+  }
+  if(typeof client.auth.signInWithPasskey!=='function'){
+    alert('Passkey sign-in is not available in this Supabase client/configuration yet. Host the app on HTTPS and confirm Supabase Passkeys support is enabled.');
+    return;
+  }
+  try{
+    const {error}=await client.auth.signInWithPasskey();
+    if(error) throw error;
+    await sessionUI();
+  }catch(e){alert('Passkey sign-in failed: '+(e.message||String(e)));}
+};
+$('registerPasskey').onclick=async()=>{
+  if(!window.isSecureContext || !navigator.credentials){
+    alert('Passkey registration needs this app hosted on HTTPS.');
+    return;
+  }
+  if(typeof client.auth.registerPasskey!=='function'){
+    alert('Passkey registration is not available in this Supabase client/configuration yet. Confirm the current Supabase Passkeys setup.');
+    return;
+  }
+  try{
+    const {error}=await client.auth.registerPasskey();
+    if(error) throw error;
+    alert('Passkey registered. Next time, choose fingerprint/passkey sign-in.');
+  }catch(e){alert('Could not register passkey: '+(e.message||String(e)));}
+};
+$('signOut').onclick=async()=>{await client.auth.signOut();location.reload()};
+async function loadProducts(){msg('Loading online products…');const {data,error}=await client.from('products').select('*').order('created_at',{ascending:false});if(error){msg('Could not load products: '+error.message+'\nCheck the owner policy in Supabase SQL Editor.');return}items=data||[];render();msg('Connected to Supabase. '+items.length+' product(s) loaded.')}
+function render(){$('count').textContent=items.length+' products';$('products').innerHTML=items.length?items.map(p=>`<div class="product"><div class="pinfo"><b>${esc(p.title)}</b><div class="muted">${esc(p.category)} · ${p.is_free?'Free':'R'+Number(p.price||0).toFixed(2)}</div><span class="pill">${p.published?'Published':'Draft'}</span></div><button onclick="editItem('${p.id}')">Edit</button><button onclick="publishItem('${p.id}',${!p.published})">${p.published?'Unpublish':'Publish'}</button><button class="danger" onclick="deleteItem('${p.id}')">Delete</button></div>`).join(''):'<p class="muted">No online products yet. Add your first product above.</p>'}
+window.editItem=id=>{const p=items.find(x=>x.id===id);if(!p)return;$('id').value=p.id;$('title').value=p.title;$('category').value=p.category;$('price').value=p.price||0;$('description').value=p.description||'';$('free').checked=!!p.is_free;$('published').checked=!!p.published;window.scrollTo({top:0,behavior:'smooth'})};
+$('clear').onclick=()=>{['id','title','description','file','cover'].forEach(k=>$(k).value='');$('price').value='0';$('free').checked=true;$('published').checked=false};
+$('save').onclick=async()=>{let title=$('title').value.trim();if(!title){alert('Enter a product title.');return}const {data:{user}}=await client.auth.getUser();if(!user){alert('Please sign in again.');return}let id=$('id').value||crypto.randomUUID();let old=items.find(p=>p.id===id)||{};let filePath=old.file_path||null,coverPath=old.cover_url||null;const up=async(f,kind)=>{if(!f)return null;const path=`${id}/${kind}-${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const {error}=await client.storage.from('vortex-products').upload(path,f,{upsert:false,contentType:f.type||'application/octet-stream'});if(error)throw error;return path};try{if($('file').files[0])filePath=await up($('file').files[0],'file');if($('cover').files[0])coverPath=await up($('cover').files[0],'cover');const row={id,title,category:$('category').value,description:$('description').value,price:Number($('price').value||0),is_free:$('free').checked,cover_url:coverPath,file_path:filePath,published:$('published').checked};const {error}=await client.from('products').upsert(row);if(error)throw error;alert('Product saved to Supabase.');$('clear').click();await loadProducts()}catch(e){alert('Save failed: '+(e.message||e)+'\nCheck the owner database policy and storage policies.')}};
+window.publishItem=async(id,published)=>{const {error}=await client.from('products').update({published}).eq('id',id);if(error)alert('Could not change publish status: '+error.message);else await loadProducts()};
+window.deleteItem=async(id)=>{if(!confirm('Delete this product record? Stored files may need separate cleanup.'))return;const {error}=await client.from('products').delete().eq('id',id);if(error)alert('Delete failed: '+error.message);else await loadProducts()};
+client.auth.onAuthStateChange(()=>sessionUI());sessionUI();
+</script></body></html>
